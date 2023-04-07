@@ -7,12 +7,11 @@ import requests
 from prettytable import PrettyTable
 from bs4 import BeautifulSoup
 
-debug = False
-
 ip_regex = re.compile("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
 as_regex = re.compile("[Oo]riginA?S?:\s*([\d\w]+?)\s")
 county_regex = re.compile("[Cc]ountry:\s*([\d\w]+?)\s")
-provider_regex = re.compile("mnt-by:\s*([\w\d-]+?)\s")
+ru_provider_regex = re.compile("mnt-by:\s*([\w\d-]+?)\n")
+for_provider_regex = re.compile("[Oo]rganization:( *)(.*)\n")
 
 
 def parse(s, reg: re.Pattern):
@@ -45,8 +44,6 @@ def getIpInfo(ip: str):
     else:
         url = f"https://www.nic.ru/whois/?searchWord={ip}"
         r = requests.get(url)
-        if debug:
-            print(r.status_code)
 
         time.sleep(random.randint(6, 10))
         # Unnecessary, but makes result more stable
@@ -54,9 +51,12 @@ def getIpInfo(ip: str):
         soup_ing = str(BeautifulSoup(r.content, "html.parser"))
         system = parse(soup_ing, as_regex)
         country = parse(soup_ing, county_regex)
-        provider = parse(soup_ing, provider_regex)
-        if debug:
-            print(system, country, provider)
+        provider = parse(soup_ing, ru_provider_regex)
+        if provider == '':
+            try:
+                provider = parse(soup_ing, for_provider_regex)[1]
+            except:
+                provider = ''
         return ip, system, country, provider
 
 
@@ -66,7 +66,6 @@ def make_table(ips):
     i = 0
     for ip in ips:
         table_entry = getIpInfo(ip)
-        print(table_entry)
         if i == 0:
             table_data.append('Target')
         else:
@@ -88,8 +87,6 @@ def main():
     else:
         ip = sys.argv[1]
         ip_trace = tracert(ip)
-        if debug:
-            print(ip_trace)
         make_table(ip_trace)
 
 
